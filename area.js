@@ -145,8 +145,25 @@ Game.Bubbles = function (area) {
         return path;
     }
 
-    var shift = function (i, j) {
-        var doc = 
+    var shift = function (x, y) {
+        var current = board[x][y],
+            upper;
+
+        board[x][y];
+        while(current.firstChild) {
+            current.removeChild(current.firstChild);
+        }
+
+        if (y > 0) {
+            upper = board[x][y - 1];
+            if (upper.firstChild) {
+                current.appendChild(upper.firstChild);
+            }
+            board[x][y] = current;
+            if (y - 1 >= 0) {
+                shift(x, y - 1);
+            }
+        }
     }
 
     for (i = 0, maxX = board.length; i < maxX; i += 1) {
@@ -162,11 +179,20 @@ Game.Bubbles = function (area) {
             owner.setAttribute('x', i);
             owner.setAttribute('y', j);
 
-            owner.addEventListener('click', function() {
-                var els = findSiblings(+this.getAttribute('x'), +this.getAttribute('y')),
-                    n, max = els.length;
-                for(n = 0; n < max; n += 1){
-                    els[n].style.display = 'none';
+            owner.addEventListener('click', function () {
+                var n,
+                    x = +this.getAttribute('x'),
+                    y = +this.getAttribute('y'),
+                    els = findSiblings(x, y),
+                    max = els.length;
+
+                for (n = 0; n < max; n += 1) {
+                    //els[n].style.display = 'none';
+                    var current = els[n],
+                        x = +els[n].getAttribute('x'),
+                        y = +els[n].getAttribute('y');
+
+                    shift(x, y);
                 }
             }, false);
 
