@@ -91,6 +91,33 @@ element.types.circle = {
         return canvas;
     }};
 
+var algorithms = {};
+algorithms.siblingSearch = function (board, x, y, condition, sort) {
+    var elt = board[x][y],
+        path = [elt];
+
+    var discr = condition(elt);
+    (function nearestRecursive(x, y) {
+        var siblings = [],
+            i, max;
+        x - 1 >= 0 && siblings.push({ x: x - 1, y: y });
+        y + 1 < board[x].length && siblings.push({ x: x, y: y + 1 });
+        x + 1 < board.length && siblings.push({ x: x + 1, y: y });
+        y - 1 >= 0 && siblings.push({ x: x, y: y - 1 });
+
+        for (i = 0, max = siblings.length; i < max; i += 1) {
+            var coords = siblings[i],
+                item = board[coords.x][coords.y];
+            if (discr === condition(item) && path.indexOf(item) === -1) {
+                path.push(item);
+                nearestRecursive(coords.x, coords.y);
+            }
+        }
+    }(x, y));
+
+    return path.sort(sort);
+}
+
 function Game() {
 }
 
@@ -110,109 +137,88 @@ Game.Bubbles = function (area) {
         colors = ['red', 'green', 'blue', 'violet', 'yellow'],
         colorAttr = 'data-color',
         config = area.config,
-        score = 0;
-
-    var findSiblings = function (i, j) {
-        var elt = board[i][j],
-            color = elt.getAttribute(colorAttr),
-            path = [];
-        path.push(elt);
-
-        function nearest(i, j) {
-            //TODO: Hell
-            var l = i - 1 < 0 ? undefined : board[i - 1][j],
-                t = j + 1 < board[i].length ? board[i][j + 1] : undefined,
-                r = i + 1 < board.length ? board[i + 1][j] : undefined,
-                b = j - 1 < 0 ? undefined : board[i][j - 1];
-
-            if (l && l.getAttribute(colorAttr) === color && path.indexOf(l) === -1) {
-                path.push(l);
-                nearest(i - 1, j);
+        score = 0,
+        calculateScore = function (count) {
+            return count * count;
+        },
+        clear = function(elt) {
+            while (elt.firstChild) {
+                elt.removeChild(elt.firstChild);
             }
-            if (t && t.getAttribute(colorAttr) === color && path.indexOf(t) === -1) {
-                path.push(t);
-                nearest(i, j + 1);
-            }
-            if (r && r.getAttribute(colorAttr) === color && path.indexOf(r) === -1) {
-                path.push(r);
-                nearest(i + 1, j);
-            }
-            if (b && b.getAttribute(colorAttr) === color && path.indexOf(b) === -1) {
-                path.push(b);
-                nearest(i, j - 1);
+        },
+        shift = function (x, y) {
+            var current = board[x][y],
+                upper;
+            clear(current);
+
+            if (y > 0) {
+                upper = board[x][y - 1];
+                if (upper && upper.firstChild) {
+                    current.appendChild(upper.firstChild);
+                    current.setAttribute(colorAttr, upper.getAttribute(colorAttr));
+                    upper.removeAttribute(colorAttr);
+                }
+                board[x][y] = current;
+                if (y - 1 >= 0) {
+                    shift(x, y - 1);
+                }
             }
         };
-        nearest(i, j);
-        return path.sort(function(a, b) {
-            return a.getAttribute('y') - b.getAttribute('y');
-        });
-    }
 
-    var shift = function (x, y) {
-        var current = board[x][y],
-            upper;
+    area.element.addEventListener('click', function (e) {
+        var n,
+            current = e.target || e.srcElement,
+            x, y, els, max;
 
-        while(current && current.firstChild) {
-            current.removeChild(current.firstChild);
+        if (current.nodeName.toLowerCase() !== "canvas") {
+            return;
         }
 
-        if (y > 0) {
-            upper = board[x][y - 1];
-            if (upper && upper.firstChild) {
-                current.appendChild(upper.firstChild);
-                current.setAttribute(colorAttr, upper.getAttribute(colorAttr));
-                upper.setAttribute(colorAttr, '');
-            }
-            board[x][y] = current;
-            if (y - 1 >= 0) {
-                shift(x, y - 1);
+        var holder = current.parentElement;
+        x = +holder.getAttribute('x');
+        y = +holder.getAttribute('y');
+
+        els = algorithms.siblingSearch(board, x, y,
+            function (elt) {
+                return elt.getAttribute(colorAttr);
+            },
+            function (a, b) {
+                return a.getAttribute('y') - b.getAttribute('y');
+            }),
+            max = els.length;
+
+        if (max === 1) {
+            return;
+        }
+
+        score += calculateScore(max);
+
+        for (n = 0; n < max; n += 1) {
+            var x = +els[n].getAttribute('x'),
+                y = +els[n].getAttribute('y');
+
+            shift(x, y)
+        }
+    }, true);
+
+    (function fillOut() {
+        for (i = 0, maxX = board.length; i < maxX; i += 1) {
+            for (j = 0, maxY = board[i].length; j < maxY; j += 1) {
+                owner = board[i][j];
+                clear(owner);
+
+                config.color = owner.getAttribute(colorAttr) || colors[Math.floor((Math.random() * 5))];
+
+                owner.setAttribute(colorAttr, config.color);
+                owner.setAttribute('x', i.toString());
+                owner.setAttribute('y', j.toString());
+
+                var item = element.generate(type, config);
+
+                owner.appendChild(item);
             }
         }
-    }
-
-    var defineScore = function(count) {
-        return count * count;
-    }
-
-    for (i = 0, maxX = board.length; i < maxX; i += 1) {
-        for (j = 0, maxY = board[i].length; j < maxY; j += 1) {
-            owner = board[i][j];
-            while (owner.firstChild) {
-                owner.removeChild(owner.firstChild);
-            }
-
-            config.color = owner.getAttribute(colorAttr) || colors[Math.floor((Math.random() * 5))];
-
-            owner.setAttribute(colorAttr, config.color);
-            owner.setAttribute('x', i);
-            owner.setAttribute('y', j);
-
-            owner.addEventListener('click', function () {
-                var n,
-                    x = +this.getAttribute('x'),
-                    y = +this.getAttribute('y'),
-                    els = findSiblings(x, y),
-                    max = els.length;
-                if (max === 1) {
-                    return;
-                }
-                score += defineScore(max);
-                console.log(score);
-                for (n = 0; n < max; n += 1) {
-                    //els[n].style.display = 'none';
-                    var current = els[n],
-                        x = +els[n].getAttribute('x'),
-                        y = +els[n].getAttribute('y');
-
-                    shift(x, y);
-                }
-            }, false);
-
-            var item = element.generate(type, config);
-
-            owner.appendChild(item);
-        }
-    }
+    }());
 
     return this;
 }
