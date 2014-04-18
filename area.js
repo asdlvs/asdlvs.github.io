@@ -31,15 +31,15 @@
             var boardFragment = doc.createDocumentFragment();
             for (i = 0; i < x; i += 1) {
                 this.board[i] = [];
-                xOffset = xOffset + (this.config.width + this.config.padding);
+                xOffset = i * (this.config.width + this.config.padding);
                 yOffset = 0;
                 for (j = 0; j < y; j += 1) {
-                    yOffset = yOffset + (this.config.height + this.config.padding);
+                    yOffset = j * (this.config.height + this.config.padding);
                     var elt = doc.createElement('div');
 
                     elt.className = "elt";
-                    elt.style.left = xOffset + "px";
-                    elt.style.top = yOffset + "px";
+                    elt.style.left = this.element.offsetLeft + xOffset + "px";
+                    elt.style.top = this.element.offsetTop + yOffset + "px";
                     elt.style.position = 'absolute';
                     elt.style.width = this.config.width + "px";
                     elt.style.height = this.config.height + "px";
@@ -227,8 +227,8 @@
     }
 
     var desc = area.build(10, 10, {
-        width: 40,
-        height: 40,
+        width: 20,
+        height: 20,
         padding: 0
     })
 
