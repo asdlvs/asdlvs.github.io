@@ -142,22 +142,25 @@ Game.Bubbles = function (area) {
             }
         };
         nearest(i, j);
-        return path;
+        return path.sort(function(a, b) {
+            return a.getAttribute('y') - b.getAttribute('y');
+        });
     }
 
     var shift = function (x, y) {
         var current = board[x][y],
             upper;
 
-        board[x][y];
-        while(current.firstChild) {
+        while(current && current.firstChild) {
             current.removeChild(current.firstChild);
         }
 
         if (y > 0) {
             upper = board[x][y - 1];
-            if (upper.firstChild) {
+            if (upper && upper.firstChild) {
                 current.appendChild(upper.firstChild);
+                current.setAttribute(colorAttr, upper.getAttribute(colorAttr));
+                upper.setAttribute(colorAttr, '');
             }
             board[x][y] = current;
             if (y - 1 >= 0) {
