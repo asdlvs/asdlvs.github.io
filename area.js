@@ -109,7 +109,8 @@ Game.Bubbles = function (area) {
         owner,
         colors = ['red', 'green', 'blue', 'violet', 'yellow'],
         colorAttr = 'data-color',
-        config = area.config;
+        config = area.config,
+        score = 0;
 
     var findSiblings = function (i, j) {
         var elt = board[i][j],
@@ -169,6 +170,10 @@ Game.Bubbles = function (area) {
         }
     }
 
+    var defineScore = function(count) {
+        return count * count;
+    }
+
     for (i = 0, maxX = board.length; i < maxX; i += 1) {
         for (j = 0, maxY = board[i].length; j < maxY; j += 1) {
             owner = board[i][j];
@@ -188,7 +193,11 @@ Game.Bubbles = function (area) {
                     y = +this.getAttribute('y'),
                     els = findSiblings(x, y),
                     max = els.length;
-
+                if (max === 1) {
+                    return;
+                }
+                score += defineScore(max);
+                console.log(score);
                 for (n = 0; n < max; n += 1) {
                     //els[n].style.display = 'none';
                     var current = els[n],
