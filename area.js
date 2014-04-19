@@ -7,11 +7,12 @@
  */
 
 (function () {
+    //Create board
     var area = {
         element: document.getElementById("area"),
         board: [],
         config: {},
-        build: function (x, y, config) {
+        build: function (cols, rows, config) {
             this.config = config || {
                 padding: 3,
                 width: 20,
@@ -19,30 +20,32 @@
             };
 
             var i, j,
-                x = x || 10,
-                y = y || 10,
+                x = cols || 10,
+                rows = rows || 10,
                 xOffset = 0,
                 yOffset = 0,
-                doc = document;
+                doc = document,
+                style = this.element.style;
 
-            this.element.style.width = x * (this.config.width + this.config.padding) + "px";
-            this.element.style.height = y * (this.config.height + this.config.padding) + "px";
+            style.width = x * (this.config.width + this.config.padding) + "px";
+            style.height = rows * (this.config.height + this.config.padding) + "px";
 
             var boardFragment = doc.createDocumentFragment();
             for (i = 0; i < x; i += 1) {
                 this.board[i] = [];
                 xOffset = i * (this.config.width + this.config.padding);
                 yOffset = 0;
-                for (j = 0; j < y; j += 1) {
+                for (j = 0; j < rows; j += 1) {
                     yOffset = j * (this.config.height + this.config.padding);
-                    var elt = doc.createElement('div');
+                    var elt = doc.createElement('div'),
+                        style = elt.style;
 
                     elt.className = "elt";
-                    elt.style.left = this.element.offsetLeft + xOffset + "px";
-                    elt.style.top = this.element.offsetTop + yOffset + "px";
-                    elt.style.position = 'absolute';
-                    elt.style.width = this.config.width + "px";
-                    elt.style.height = this.config.height + "px";
+                    style.left = this.element.offsetLeft + xOffset + "px";
+                    style.top = this.element.offsetTop + yOffset + "px";
+                    style.position = 'absolute';
+                    style.width = this.config.width + "px";
+                    style.height = this.config.height + "px";
 
                     this.board[i][j] = elt;
                     boardFragment.appendChild(elt);
@@ -59,6 +62,7 @@
         }
     };
 
+    //Visual elements
     var element = {
         types: [],
         generate: function (type, config) {
@@ -92,9 +96,10 @@
             return canvas;
         }};
 
+    //Algorithms
     var algorithms = {};
-    algorithms.siblingSearch = function (board, x, y, condition, sort) {
-        var elt = board[x][y],
+    algorithms.siblingSearch = function (board, coords, condition, sort) {
+        var elt = board[coords.x][coords.y],
             path = [elt];
 
         var discr = condition(elt);
@@ -109,17 +114,25 @@
             for (i = 0, max = siblings.length; i < max; i += 1) {
                 var coords = siblings[i],
                     item = board[coords.x][coords.y];
+
                 if (discr === condition(item) && path.indexOf(item) === -1) {
                     path.push(item);
                     nearestRecursive(coords.x, coords.y);
                 }
             }
-        }(x, y));
+        }(coords.x, coords.y));
 
         return path.sort(sort);
     }
 
-    function Game() {
+    function Game(name) {
+        if (Game[name] === "undefined") {
+            throw {
+                name: "GameNotFoundException",
+                message: "There are no game *" + name + "*"
+            };
+        }
+        return Game[name];
     }
 
     Game.Bubbles = function (area, callback) {
@@ -135,7 +148,7 @@
             type = 'circle',
             board = area.board,
             owner,
-            colors = ['red', 'green', 'blue', 'violet', 'yellow'],
+            colors = ['#ff0033', '#7fff00', '#0047ab', '#4b0082', '#fbec5d'],
             colorAttr = 'data-color',
             config = area.config,
             score = 0,
@@ -146,33 +159,58 @@
             calculateScore = function (count) {
                 return count * count;
             },
-            clear = function (elt) {
+            clearElt = function (elt) {
                 while (elt.firstChild) {
                     elt.removeChild(elt.firstChild);
                 }
             },
-            shift = function (x, y) {
-                var current = board[x][y],
-                    upper;
-                clear(current);
+            shift = function (els) {
+                var i, max;
 
-                if (y > 0) {
-                    upper = board[x][y - 1];
-                    if (upper && upper.firstChild) {
-                        current.appendChild(upper.firstChild);
-                        current.setAttribute(colorAttr, upper.getAttribute(colorAttr));
-                        upper.removeAttribute(colorAttr);
-                    }
-                    board[x][y] = current;
-                    if (y - 1 >= 0) {
-                        shift(x, y - 1);
+                for (i = 0, max = els.length; i < max; i += 1) {
+                    shiftElt(els[i]);
+                }
+                function shiftElt(current) {
+                    var upper,
+                        x = current.getAttribute('x'),
+                        y = current.getAttribute('y');
+                    clearElt(current);
+
+                    if (y > 0) {
+                        upper = board[x][y - 1];
+                        if (upper && upper.firstChild) {
+                            current.appendChild(upper.firstChild);
+                            current.setAttribute(colorAttr, upper.getAttribute(colorAttr));
+                            upper.removeAttribute(colorAttr);
+                        }
+                        board[x][y] = current;
+                        if (y - 1 >= 0) {
+                            shiftElt(upper);
+                        }
                     }
                 }
             };
+        this.install = function fillOut() {
+            for (i = 0, maxX = board.length; i < maxX; i += 1) {
+                for (j = 0, maxY = board[i].length; j < maxY; j += 1) {
+                    owner = board[i][j];
+                    clearElt(owner);
+
+                    config.color = owner.getAttribute(colorAttr) || colors[Math.floor((Math.random() * 5))];
+
+                    owner.setAttribute(colorAttr, config.color);
+                    owner.setAttribute('x', i.toString());
+                    owner.setAttribute('y', j.toString());
+
+                    var item = element.generate(type, config);
+
+                    owner.appendChild(item);
+                }
+            }
+        };
 
         area.element.addEventListener('click', function (e) {
-            var n,
-                current = e.target || e.srcElement,
+            var current = e.target || e.srcElement,
                 x, y, els, max;
 
             if (current.nodeName.toLowerCase() !== "canvas") {
@@ -183,7 +221,7 @@
             x = +holder.getAttribute('x');
             y = +holder.getAttribute('y');
 
-            els = algorithms.siblingSearch(board, x, y,
+            els = algorithms.siblingSearch(board, { x: x, y: y },
                 function (elt) {
                     return elt.getAttribute(colorAttr);
                 },
@@ -197,48 +235,24 @@
             }
 
             updateScore(calculateScore(max));
-
-            for (n = 0; n < max; n += 1) {
-                var x = +els[n].getAttribute('x'),
-                    y = +els[n].getAttribute('y');
-
-                shift(x, y)
-            }
+            shift(els);
         }, true);
-
-        (function fillOut() {
-            for (i = 0, maxX = board.length; i < maxX; i += 1) {
-                for (j = 0, maxY = board[i].length; j < maxY; j += 1) {
-                    owner = board[i][j];
-                    clear(owner);
-
-                    config.color = owner.getAttribute(colorAttr) || colors[Math.floor((Math.random() * 5))];
-
-                    owner.setAttribute(colorAttr, config.color);
-                    owner.setAttribute('x', i.toString());
-                    owner.setAttribute('y', j.toString());
-
-                    var item = element.generate(type, config);
-
-                    owner.appendChild(item);
-                }
-            }
-        }());
+        return this;
     }
 
+    //Runner
     var desc = area.build(10, 10, {
         width: 20,
         height: 20,
         padding: 0
     })
-
-    Game.Bubbles(desc, function (score) {
+    Game["Bubbles"](desc, function (score) {
         var doc = document,
             div = doc.getElementById('score'),
             h1 = div.getElementsByTagName('h1')[0];
 
         h1.innerHTML = score;
-    });
+    }).install();
 }());
 
 
