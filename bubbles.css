@@ -8,6 +8,22 @@
     color: cornflowerblue;
 }
 
+#popup {
+    font-family: Tahoma;
+    position : absolute;
+    display : none;
+    background-color : #ffffff;
+    border : 1px solid silver;
+    min-height : 16px;
+    min-width : 20px;
+    border-radius: 5px;
+    -moz-border-radius: 5px;
+    -webkit-border-radius: 5px;
+    text-align: center;
+    font-weight: bold;
+    font-size: 9pt;
+}
+
 
 
 

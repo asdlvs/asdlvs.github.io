@@ -61,6 +61,7 @@
         }
     };
 
+
     //Visual elements
     var element = {
         types: [],
@@ -94,6 +95,31 @@
 
             return canvas;
         }};
+    element.types.decorate = {
+        render: function (config) {
+            var doc = document,
+                canvas = doc.createElement('canvas'),
+                context = canvas.getContext('2d'),
+                minvalue = Math.min(config.width, config.height),
+                radius = (minvalue - minvalue * 0.2) / 2,
+                centerX = config.width / 2,
+                centerY = config.height / 2;
+
+            canvas.width = config.width;
+            canvas.height = config.height;
+
+            context.beginPath();
+            context.arc(centerX, centerY, radius, 0, 2 * Math.PI, false);
+            context.fillStyle = config.color || '#FFFFFF';
+            context.fill();
+            context.lineWidth = 2;
+            context.strokeStyle = '#00000';
+            context.stroke();
+
+            return canvas;
+        }
+    };
+
 
     //Algorithms
     var algorithms = {};
@@ -124,6 +150,7 @@
         return path.sort(sort);
     }
 
+    //Game
     function Game(name) {
         if (Game[name] === "undefined") {
             throw {
@@ -144,6 +171,7 @@
 
         var i, j,
             maxX, maxY,
+            popup,
             type = 'circle',
             board = area.board,
             owner,
@@ -151,6 +179,7 @@
             colorAttr = 'data-color',
             config = area.config,
             score = 0,
+            selectedEls = [],
             updateScore = function (add) {
                 score += add;
                 callback(score);
@@ -188,7 +217,76 @@
                         }
                     }
                 }
+            },
+            changeStyle = function (els, type) {
+                var i, max;
+
+                if (!els) {
+                    return;
+                }
+                for (i = 0, max = els.length; i < max; i += 1) {
+                    var defaultElt = els[i].childNodes[0],
+                        color = els[i].getAttribute(colorAttr);
+
+                    config.color = color;
+                    var newElt = element.generate(type, config);
+
+                    els[i].replaceChild(newElt, defaultElt)
+                }
+            },
+            siblingsSearchHandler = function (e) {
+                var current = e.target || e.srcElement,
+                    x, y, els, max;
+                if (current.nodeName.toLowerCase() !== "canvas") {
+                    return;
+                }
+
+                var holder = current.parentElement;
+
+                if (selectedEls.indexOf(holder) >= 0) {
+                    return selectedEls;
+                }
+
+                x = +holder.getAttribute('x');
+                y = +holder.getAttribute('y');
+
+                els = algorithms.siblingSearch(board, { x: x, y: y },
+                    function (elt) {
+                        return elt.getAttribute(colorAttr);
+                    },
+                    function (a, b) {
+                        return a.getAttribute('y') - b.getAttribute('y');
+                    }),
+                    max = els.length;
+
+                if (max === 1) {
+                    return holder;
+                }
+
+                return els;
+            },
+            showInterRes = function (els) {
+                var right = els
+                    .map(function (elt) {
+                        return parseInt(elt.style.left, 10) + parseInt(elt.style.width, 10);
+                    })
+                    .reduce(function (a, b) {
+                        return Math.max(a, b);
+                    }),
+                    top = els
+                        .filter(function(elt) {
+                            return parseInt(elt.style.left) + parseInt(elt.style.width) === +right
+                        })[0].style.top;
+                popup.style.left = right + 'px';
+                popup.style.top = top;
+                popup.innerHTML = calculateScore(els.length);
+                popup.style.display = 'block';
+            },
+            clearSelection = function() {
+                selectedEls = [];
+                popup.style.display = 'none';
             };
+
         this.install = function fillOut() {
             for (i = 0, maxX = board.length; i < maxX; i += 1) {
                 for (j = 0, maxY = board[i].length; j < maxY; j += 1) {
@@ -206,46 +304,65 @@
                     owner.appendChild(item);
                 }
             }
+
+            var div = document.createElement('div');
+            div.id = 'popup';
+
+
+            area.element.parentNode.appendChild(div);
+            popup = div;
         };
 
         area.element.addEventListener('click', function (e) {
-            var current = e.target || e.srcElement,
-                x, y, els, max;
-
-            if (current.nodeName.toLowerCase() !== "canvas") {
-                return;
-            }
-
-            var holder = current.parentElement;
-            x = +holder.getAttribute('x');
-            y = +holder.getAttribute('y');
-
-            els = algorithms.siblingSearch(board, { x: x, y: y },
-                function (elt) {
-                    return elt.getAttribute(colorAttr);
-                },
-                function (a, b) {
-                    return a.getAttribute('y') - b.getAttribute('y');
-                }),
+            var els = selectedEls,
                 max = els.length;
-
-            if (max === 1) {
+            selectedEls = [];
+            if (!els) {
                 return;
             }
-
             updateScore(calculateScore(max));
             shift(els);
         }, true);
+
+        area.element.addEventListener('mouseenter', function (e) {
+            var els = siblingsSearchHandler(e);
+
+            if (!els) {
+                return;
+            }
+
+            changeStyle(selectedEls, 'circle');
+
+            if (!Array.isArray(els)) {
+                clearSelection();
+                return;
+            }
+
+            selectedEls = els;
+            changeStyle(els, 'decorate');
+
+            showInterRes(els);
+        }, true);
+
+        area.element.addEventListener('mouseleave', function (e) {
+            var current = e.target || e.srcElement;
+            if (current !== area.element) {
+                return;
+            }
+            changeStyle(selectedEls, 'circle');
+            clearSelection();
+        }, true);
+
         return this;
     }
 
     //Runner
-    var desc = area.build(10, 10, {
+    var desc = area.build(15, 20, {
         width: 20,
         height: 20,
         padding: 0
     })
-    Game["Bubbles"](desc, function (score) {
+    Game["Bubbles"](desc,function (score) {
         var doc = document,
             div = doc.getElementById('score'),
             h1 = div.getElementsByTagName('h1')[0];
