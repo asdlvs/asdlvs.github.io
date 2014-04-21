@@ -225,6 +225,9 @@
                     return;
                 }
                 for (i = 0, max = els.length; i < max; i += 1) {
+                    if (!els[i].childNodes.length) {
+                        return;
+                    }
                     var defaultElt = els[i].childNodes[0],
                         color = els[i].getAttribute(colorAttr);
 
